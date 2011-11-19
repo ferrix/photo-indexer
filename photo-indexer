@@ -1,0 +1,101 @@
+#!/usr/bin/env python
+#    Copyright (C) 2011 Jarkko Sakkinen <jarkko.sakkinen@iki.fi>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License along
+#    with this program; if not, write to the Free Software Foundation, Inc.,
+#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+from optparse import OptionParser
+import sys
+import os
+import os.path
+import stat
+import md5
+from PIL import Image
+from PIL.ExifTags import TAGS
+import re
+
+if __name__ == "__main__":
+    parser = OptionParser(usage="Usage: %prog [options] <source path> <dest path>")
+    (options, args) = parser.parse_args()
+
+    if len(args) < 2:
+        print >> sys.stderr, "Invalid number of arguments"
+        parser.print_help()
+        sys.exit(1)
+
+    source_dir_path = args[0]
+    dest_dir_path = args[1]
+
+    for source_basename in os.listdir(source_dir_path):
+        source_path = "%s%s%s" % (source_dir_path, os.sep, source_basename)
+        source_path = os.path.abspath(source_path)
+
+        print source_basename
+
+        mode = os.stat(source_path)[stat.ST_MODE]
+        if not stat.S_ISREG(mode):
+            print "SKIP: Is not a regular file."
+            continue
+
+        im_file = None
+        try:
+            im_file = file(source_path)
+        except:
+            print "SKIP: File open failed." % source_basename
+            continue
+
+        source_md5 = md5.new()
+        while True:
+            data = im_file.read(8192)
+            if not data:
+                break
+            source_md5.update(data)
+        md5sum = source_md5.hexdigest()
+
+        im_file.close()
+
+        im = None
+        try:
+            im = Image.open(source_path)
+        except IOError:
+            print "SKIP: Is not an image."
+            continue
+
+        exif = im._getexif()
+        if exif == None:
+            print "SKIP: Does not have EXIF."
+            continue
+
+        timestamp = None
+        for k, v in exif.items():
+            k = TAGS.get(k, k)
+            if type(k) == str and k == "DateTimeOriginal":
+                v = re.sub(r'[: ]', r'', v)
+                timestamp = v
+
+        if timestamp == None:
+            print "SKIP: No timestamp." % source_basename
+            continue
+
+        im_file.close()
+
+        fext = os.path.splitext(source_basename)[1]
+
+        dest_basename = "%s_%s%s" % (timestamp, md5sum, fext)
+        dest_path = "%s%s%s" % (dest_dir_path, os.sep, dest_basename)
+        dest_path = os.path.abspath(dest_path)
+
+        os.rename(source_path, dest_path)
+        print "INDEX: " + dest_basename
+
