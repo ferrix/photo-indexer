@@ -42,7 +42,7 @@ if __name__ == "__main__":
         source_path = "%s%s%s" % (source_dir_path, os.sep, source_basename)
         source_path = os.path.abspath(source_path)
 
-        print source_basename
+        print "SOURCE: " + source_basename
 
         mode = os.stat(source_path)[stat.ST_MODE]
         if not stat.S_ISREG(mode):
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         try:
             im_file = file(source_path)
         except:
-            print "SKIP: File open failed." % source_basename
+            print "SKIP: File open failed."
             continue
 
         source_md5 = md5.new()
@@ -86,7 +86,7 @@ if __name__ == "__main__":
                 timestamp = v
 
         if timestamp == None:
-            print "SKIP: No timestamp." % source_basename
+            print "SKIP: No timestamp."
             continue
 
         im_file.close()
@@ -98,5 +98,5 @@ if __name__ == "__main__":
         dest_path = os.path.abspath(dest_path)
 
         shutil.copy(source_path, dest_path)
-        print "INDEX: " + dest_basename
+        print "DEST: " + dest_basename
 
