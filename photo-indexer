@@ -24,6 +24,7 @@ import md5
 from PIL import Image
 from PIL.ExifTags import TAGS
 import re
+import shutil
 
 if __name__ == "__main__":
     parser = OptionParser(usage="Usage: %prog [options] <source path> <dest path>")
@@ -96,6 +97,6 @@ if __name__ == "__main__":
         dest_path = "%s%s%s" % (dest_dir_path, os.sep, dest_basename)
         dest_path = os.path.abspath(dest_path)
 
-        os.rename(source_path, dest_path)
+        shutil.copy(source_path, dest_path)
         print "INDEX: " + dest_basename
 
