@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 #    Copyright (C) 2011 Jarkko Sakkinen <jarkko.sakkinen@iki.fi>
+#    Copyright (C) 2011 Ferrix Hovi <ferrix@ferrix.fi>
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -18,9 +19,8 @@
 from optparse import OptionParser
 import sys
 import os
-import os.path
 import stat
-import md5
+from hashlib import md5
 from PIL import Image
 from PIL.ExifTags import TAGS
 import re
@@ -49,47 +49,38 @@ if __name__ == "__main__":
             print "SKIP: Is not a regular file."
             continue
 
-        im_file = None
         try:
-            im_file = file(source_path)
+            with file(source_path) as im_file:
+                source_md5 = md5()
+                while True:
+                    data = im_file.read(8192)
+                    if not data:
+                        break
+                    source_md5.update(data)
+                md5sum = source_md5.hexdigest()
         except:
             print "SKIP: File open failed."
             continue
 
-        source_md5 = md5.new()
-        while True:
-            data = im_file.read(8192)
-            if not data:
-                break
-            source_md5.update(data)
-        md5sum = source_md5.hexdigest()
-
-        im_file.close()
-
-        im = None
+        timestamp = None
         try:
             im = Image.open(source_path)
+            exif = im._getexif()
+            if exif == None:
+                print "SKIP: Does not have EXIF."
+                continue
+            for k, v in exif.items():
+                k = TAGS.get(k, k)
+                if type(k) == str and k == "DateTimeOriginal":
+                    v = re.sub(r'[: ]', r'', v)
+                    timestamp = v
         except IOError:
             print "SKIP: Is not an image."
             continue
 
-        exif = im._getexif()
-        if exif == None:
-            print "SKIP: Does not have EXIF."
-            continue
-
-        timestamp = None
-        for k, v in exif.items():
-            k = TAGS.get(k, k)
-            if type(k) == str and k == "DateTimeOriginal":
-                v = re.sub(r'[: ]', r'', v)
-                timestamp = v
-
         if timestamp == None:
             print "SKIP: No timestamp."
             continue
-
-        im_file.close()
 
         fext = os.path.splitext(source_basename)[1]
 

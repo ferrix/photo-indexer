@@ -1,7 +1,7 @@
 photo-indexer
 =============
 
-Copyright (c) Jarkko Sakkinen 2011
+Copyright (c) Jarkko Sakkinen, Ferrix Hovi 2011
 
 I've had a problem with digital photos coming from multiple tiers. Every device
 (phone, camera) has its own naming convention so it is hard to put them into
@@ -13,3 +13,5 @@ In order to address this problem I created this small piece of software that
 copies them to given place with filenames that are easy merge and have a logical
 organization. New filename consist of timestamp of the photograph and MD5 sum of
 photographs file contents.
+
+The indexer supports standard image types and Canon CR2 raw format.
