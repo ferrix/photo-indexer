@@ -25,6 +25,34 @@ from PIL import Image
 from PIL.ExifTags import TAGS
 import re
 import shutil
+from struct import unpack_from
+from datetime import datetime
+
+def getCR2DateTime(file):
+    with open(file, 'rb') as f:
+        buffer = f.read(1024)
+        byte_order = unpack_from('HHLHBBL', buffer)[0]
+        endian_flag = '@'
+        if byte_order == 0x4D4D:
+            endian_flag = '>'
+        elif byte_order == 0x4949:
+            endian_flag = '<'
+
+        datetime_offset = None
+        entries = unpack_from(endian_flag+'H', buffer, 0x10)[0]
+        for entry in range(0,entries):
+            (tag_id, tag_type, num_of_value, value) = unpack_from(endian_flag+'HHLL', buffer, 0x10+2+entry*12)
+
+            if tag_id == 0x0132:
+                assert tag_type == 2
+                assert num_of_value == 20
+                datetime_offset = value
+
+        if not datetime_offset:
+            return
+
+        exif_timestamp = "".join(unpack_from(20*'s', buffer, datetime_offset)).strip('\x00')
+        return datetime.strptime(exif_timestamp, '%Y:%m:%d %H:%M:%S')
 
 if __name__ == "__main__":
     parser = OptionParser(usage="Usage: %prog [options] <source path> <dest path>")
@@ -63,20 +91,25 @@ if __name__ == "__main__":
             continue
 
         timestamp = None
-        try:
-            im = Image.open(source_path)
-            exif = im._getexif()
-            if exif == None:
-                print "SKIP: Does not have EXIF."
+        if source_path.lower().endswith('.cr2'):
+            exif_dt = getCR2DateTime(source_path)
+            timestamp = exif_dt.strftime('%Y%m%d%H%M%S')
+        else:
+            try:
+                im = Image.open(source_path)
+                exif = im._getexif()
+                if exif == None:
+                    print "SKIP: Does not have EXIF."
+                    continue
+                for k, v in exif.items():
+                    k = TAGS.get(k, k)
+                    if type(k) == str and k == "DateTimeOriginal":
+                        v = re.sub(r'[: ]', r'', v)
+                        timestamp = v
+            except IOError:
+                print "SKIP: Is not an image."
                 continue
-            for k, v in exif.items():
-                k = TAGS.get(k, k)
-                if type(k) == str and k == "DateTimeOriginal":
-                    v = re.sub(r'[: ]', r'', v)
-                    timestamp = v
-        except IOError:
-            print "SKIP: Is not an image."
-            continue
+
 
         if timestamp == None:
             print "SKIP: No timestamp."
